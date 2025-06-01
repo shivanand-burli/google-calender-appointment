@@ -1,4 +1,4 @@
-import { fromZonedTime, formatInTimeZone, format } from 'date-fns-tz';
+import { toZonedTime, formatInTimeZone } from 'date-fns-tz';
 import { google } from 'googleapis';
 import { parseISO, addMinutes, isBefore } from 'date-fns';
 import dotenv from 'dotenv';
@@ -41,14 +41,12 @@ export async function getAvailableSlots(dateStr) {
     const date = parseISO(dateStr);
     if (date.getDay() === 0) return [];
 
-    const timeZone = 'Asia/Kolkata';
+    // Convert base date to zoned time
+    const startZoned = toZonedTime(`${dateStr}T11:00:00`, timeZone);
+    const endZoned = toZonedTime(`${dateStr}T17:00:00`, timeZone);
 
-    const startTime = fromZonedTime(`${dateStr}T11:00:00`, timeZone);
-    const endTime = fromZonedTime(`${dateStr}T17:00:00`, timeZone);
-
-    const timeMin = formatInTimeZone(startTime, timeZone, "yyyy-MM-dd'T'HH:mm:ssXXX");
-    const timeMax = formatInTimeZone(endTime, timeZone, "yyyy-MM-dd'T'HH:mm:ssXXX");
-
+    const timeMin = formatInTimeZone(startZoned, timeZone, "yyyy-MM-dd'T'HH:mm:ssXXX");
+    const timeMax = formatInTimeZone(endZoned, timeZone, "yyyy-MM-dd'T'HH:mm:ssXXX");
 
     const eventsRes = await calendar.events.list({
         calendarId,
@@ -64,16 +62,20 @@ export async function getAvailableSlots(dateStr) {
     ]);
 
     const availableSlots = [];
-    let current = startTime;
-    while (isBefore(current, endTime)) {
+    let current = startZoned;
+    while (isBefore(current, endZoned)) {
         const next = addMinutes(current, 30);
         const overlap = busySlots.some(([start, end]) => current < end && next > start);
-        if (!overlap) availableSlots.push(current.toTimeString().slice(0, 5));
+        if (!overlap) {
+            const timeStr = formatInTimeZone(current, timeZone, 'HH:mm');
+            availableSlots.push(timeStr);
+        }
         current = next;
     }
 
     return availableSlots;
 }
+
 
 export async function bookSlot(dateStr, timeSlot, email, mobile, name, reason) {
     const [hours, minutes] = timeSlot.split(':').map(Number);
