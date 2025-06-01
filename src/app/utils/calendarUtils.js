@@ -38,22 +38,20 @@ export function isBookingAllowed(requestedDate) {
 }
 
 export async function getAvailableSlots(dateStr) {
-
     try {
-        const date = parseISO(dateStr);
-        if (date.getDay() === 0) return [];
 
-        // Create start and end in UTC, then convert to zoned time for display
-        const rawStart = setMinutes(setHours(date, 11), 0); // 11:00 IST
-        const rawEnd = setMinutes(setHours(date, 17), 0);   // 17:00 IST
+        // Step 1: Convert ISO string to date object in desired time zone
+        const dateInZone = toZonedTime(parseISO(dateStr), timeZone);
 
-        const startZoned = toZonedTime(rawStart, timeZone);
-        const endZoned = toZonedTime(rawEnd, timeZone);
+        // Step 2: Set 11:00 AM and 5:00 PM in that time zone
+        const rawStart = setMinutes(setHours(dateInZone, 11), 0); // 11:00 IST
+        const rawEnd = setMinutes(setHours(dateInZone, 17), 0);   // 17:00 IST
 
+        // Step 3: Format for Google Calendar API in ISO8601 with time zone offset
         const timeMin = formatInTimeZone(rawStart, timeZone, "yyyy-MM-dd'T'HH:mm:ssXXX");
         const timeMax = formatInTimeZone(rawEnd, timeZone, "yyyy-MM-dd'T'HH:mm:ssXXX");
 
-
+        // Step 4: Fetch events
         const eventsRes = await calendar.events.list({
             calendarId,
             timeMin,
@@ -62,13 +60,13 @@ export async function getAvailableSlots(dateStr) {
             orderBy: 'startTime',
         });
 
-        console.log("eventsRes : ", eventsRes);
-
+        // Step 5: Parse busy slots
         const busySlots = eventsRes.data.items.map(e => [
             new Date(e.start.dateTime),
             new Date(e.end.dateTime)
         ]);
 
+        // Step 6: Generate available 30-minute slots
         const availableSlots = [];
         let current = rawStart;
         while (isBefore(current, rawEnd)) {
@@ -83,11 +81,10 @@ export async function getAvailableSlots(dateStr) {
 
         return availableSlots;
     } catch (err) {
-        console.log("Failed to get available slots from calender : ", err)
+        console.error("Failed to get available slots from calendar:", err);
         throw err;
     }
 }
-
 
 export async function bookSlot(dateStr, timeSlot, email, mobile, name, reason) {
     const [hours, minutes] = timeSlot.split(':').map(Number);
@@ -136,7 +133,7 @@ export async function bookSlot(dateStr, timeSlot, email, mobile, name, reason) {
             end: response.data.end,
         }
     } catch (err) {
-        console.error('Google Calendar Error:', err);
+        console.error('Failed to book slot: ', err);
         throw err;
     }
 }
