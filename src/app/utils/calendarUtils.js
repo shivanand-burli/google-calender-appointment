@@ -58,8 +58,6 @@ export async function getAvailableSlots(dateStr) {
             orderBy: 'startTime',
         });
 
-        console.log("eventsRes : ", eventsRes)
-
         const busySlots = eventsRes.data.items.map(e => [
             new Date(e.start.dateTime),
             new Date(e.end.dateTime)
