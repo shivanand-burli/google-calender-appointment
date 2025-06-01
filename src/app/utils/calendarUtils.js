@@ -90,8 +90,8 @@ export async function bookSlot(dateStr, timeSlot, email, mobile, name, reason) {
     }
 
     const event = {
-        summary: 'Discussion with LEGALVALA',
-        description: `Name: ${name || 'N/A'}\nMobile: ${mobile || 'N/A'}\nEmail: ${email}\n\n\nDetails: ${reason || 'Discussion with LEGALVALA'}`,
+        summary: process.env.EVENT_SUMMARY || 'Discussion',
+        description: `Name: ${name || 'N/A'}\nMobile: ${mobile || 'N/A'}\nEmail: ${email}\n\n\nDetails: ${reason || process.env.EVENT_SUMMARY || 'Discussion'}`,
         start: { dateTime: toLocalISOString(start), timeZone: 'Asia/Kolkata' },
         end: { dateTime: toLocalISOString(end), timeZone: 'Asia/Kolkata' },
         attendees: [
