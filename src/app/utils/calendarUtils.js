@@ -71,7 +71,7 @@ export async function getAvailableSlots(dateStr) {
     return availableSlots;
 }
 
-export async function bookSlot(dateStr, timeSlot, email, mobile, name) {
+export async function bookSlot(dateStr, timeSlot, email, mobile, name, reason) {
     const [hours, minutes] = timeSlot.split(':').map(Number);
 
     const start = new Date(dateStr);
@@ -90,8 +90,8 @@ export async function bookSlot(dateStr, timeSlot, email, mobile, name) {
     }
 
     const event = {
-        summary: 'Booked Slot',
-        description: `Name: ${name || 'N/A'}\nMobile: ${mobile || 'N/A'}\nEmail: ${email}`,
+        summary: 'Discussion with LEGALVALA',
+        description: `Name: ${name || 'N/A'}\nMobile: ${mobile || 'N/A'}\nEmail: ${email}\n\n\nDetails: ${reason || 'Discussion with LEGALVALA'}`,
         start: { dateTime: toLocalISOString(start), timeZone: 'Asia/Kolkata' },
         end: { dateTime: toLocalISOString(end), timeZone: 'Asia/Kolkata' },
         attendees: [
