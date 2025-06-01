@@ -46,6 +46,7 @@ export async function getAvailableSlots(dateStr) {
     const startTime = new Date(date.setHours(11, 0, 0, 0));
     const endTime = new Date(date.setHours(17, 0, 0, 0));
 
+    console.log("fetching events using google api...");
     const eventsRes = await calendar.events.list({
         calendarId,
         timeMin: formatISO(startTime),
@@ -53,6 +54,8 @@ export async function getAvailableSlots(dateStr) {
         singleEvents: true,
         orderBy: 'startTime',
     });
+
+    console.log("events fetched : ", eventsRes);
 
     const busySlots = eventsRes.data.items.map(e => [
         new Date(e.start.dateTime),
@@ -67,6 +70,8 @@ export async function getAvailableSlots(dateStr) {
         if (!overlap) availableSlots.push(current.toTimeString().slice(0, 5));
         current = next;
     }
+
+    console.log("available slots to return : ", availableSlots)
 
     return availableSlots;
 }
