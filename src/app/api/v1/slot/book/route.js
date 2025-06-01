@@ -6,7 +6,7 @@ import { updateSlotBooked } from '@/app/utils/cache';
 export async function POST(request) {
     try {
         const body = await request.json();
-        const { key, date, timeSlot, email, mobile, name } = body;
+        const { key, date, timeSlot, email, mobile, name, reason } = body;
 
         if (!key || key !== process.env.PERMIT_KEY) {
             return NextResponse.json({ error: 'Not authorized' }, { status: 401 });
@@ -28,7 +28,7 @@ export async function POST(request) {
         }
 
         const start = Date.now();
-        const result = await bookSlot(date, timeSlot, email, mobile, name);
+        const result = await bookSlot(date, timeSlot, email, mobile, name, reason);
         const duration = ((Date.now() - start) / 1000).toFixed(2);
 
         if (result.status === 'success') {
