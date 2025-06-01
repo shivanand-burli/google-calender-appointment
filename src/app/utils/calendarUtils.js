@@ -6,8 +6,6 @@ import { allowedBookingDays, getSlotsIfAvailable, isSlotBlocked } from '@/app/ut
 
 dotenv.config();
 
-const timeZone = 'Asia/Kolkata';
-
 const calendarId = process.env.GOOGLE_CALENDAR_ID;
 const auth = global.googleAuthClient;
 const calendar = google.calendar({ version: 'v3', auth });
@@ -39,19 +37,16 @@ export function isBookingAllowed(requestedDate) {
 
 export async function getAvailableSlots(dateStr) {
     try {
+        const timeZone = 'Asia/Kolkata';
 
-        // Step 1: Convert ISO string to date object in desired time zone
-        const dateInZone = toZonedTime(parseISO(dateStr), timeZone);
+        // Construct 11:00 and 17:00 IST in UTC
+        const rawStart = zonedTimeToUtc(`${dateStr}T11:00:00`, timeZone);
+        const rawEnd = zonedTimeToUtc(`${dateStr}T17:00:00`, timeZone);
 
-        // Step 2: Set 11:00 AM and 5:00 PM in that time zone
-        const rawStart = setMinutes(setHours(dateInZone, 11), 0); // 11:00 IST
-        const rawEnd = setMinutes(setHours(dateInZone, 17), 0);   // 17:00 IST
-
-        // Step 3: Format for Google Calendar API in ISO8601 with time zone offset
+        // Format for Google Calendar API (with timezone offset)
         const timeMin = formatInTimeZone(rawStart, timeZone, "yyyy-MM-dd'T'HH:mm:ssXXX");
         const timeMax = formatInTimeZone(rawEnd, timeZone, "yyyy-MM-dd'T'HH:mm:ssXXX");
 
-        // Step 4: Fetch events
         const eventsRes = await calendar.events.list({
             calendarId,
             timeMin,
@@ -60,13 +55,14 @@ export async function getAvailableSlots(dateStr) {
             orderBy: 'startTime',
         });
 
-        // Step 5: Parse busy slots
+        console.log("eventsRes : ",eventsRes)
+
         const busySlots = eventsRes.data.items.map(e => [
             new Date(e.start.dateTime),
             new Date(e.end.dateTime)
         ]);
 
-        // Step 6: Generate available 30-minute slots
+        // Generate available 30-min slots
         const availableSlots = [];
         let current = rawStart;
         while (isBefore(current, rawEnd)) {
