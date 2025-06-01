@@ -1,10 +1,12 @@
-import { toZonedTime, formatInTimeZone } from 'date-fns-tz';
 import { google } from 'googleapis';
-import { parseISO, addMinutes, isBefore, setMinutes, setHours } from 'date-fns';
+import { parseISO, addMinutes, isBefore } from 'date-fns';
 import dotenv from 'dotenv';
 import { allowedBookingDays, getSlotsIfAvailable, isSlotBlocked } from '@/app/utils/cache'
 
 dotenv.config();
+
+const timeZone = 'Asia/Kolkata';
+// .toLocaleString("en-US", { timeZone: timeZone })
 
 const calendarId = process.env.GOOGLE_CALENDAR_ID;
 const auth = global.googleAuthClient;
@@ -37,41 +39,38 @@ export function isBookingAllowed(requestedDate) {
 
 export async function getAvailableSlots(dateStr) {
     try {
-        const timeZone = 'Asia/Kolkata';
 
-        // Construct 11:00 and 17:00 IST in UTC
-        const rawStart = zonedTimeToUtc(`${dateStr}T11:00:00`, timeZone);
-        const rawEnd = zonedTimeToUtc(`${dateStr}T17:00:00`, timeZone);
+        const date = new Date(new Date(dateStr).toLocaleString("en-US", { timeZone: timeZone }));
 
-        // Format for Google Calendar API (with timezone offset)
-        const timeMin = formatInTimeZone(rawStart, timeZone, "yyyy-MM-dd'T'HH:mm:ssXXX");
-        const timeMax = formatInTimeZone(rawEnd, timeZone, "yyyy-MM-dd'T'HH:mm:ssXXX");
+        // Disallow Sundays (0 = Sunday)
+        if (date.getDay() === 0) {
+            return [];
+        }
+
+        const startTime = new Date(date.setHours(11, 0, 0, 0));
+        const endTime = new Date(date.setHours(17, 0, 0, 0));
 
         const eventsRes = await calendar.events.list({
             calendarId,
-            timeMin,
-            timeMax,
+            timeMin: startTime,
+            timeMax: endTime,
             singleEvents: true,
             orderBy: 'startTime',
         });
 
-        console.log("eventsRes : ",eventsRes)
+        console.log("eventsRes : ", eventsRes)
 
         const busySlots = eventsRes.data.items.map(e => [
             new Date(e.start.dateTime),
             new Date(e.end.dateTime)
         ]);
 
-        // Generate available 30-min slots
         const availableSlots = [];
-        let current = rawStart;
-        while (isBefore(current, rawEnd)) {
+        let current = startTime;
+        while (isBefore(current.toLocaleString("en-US", { timeZone: timeZone }), endTime.toLocaleString("en-US", { timeZone: timeZone }))) {
             const next = addMinutes(current, 30);
             const overlap = busySlots.some(([start, end]) => current < end && next > start);
-            if (!overlap) {
-                const timeStr = formatInTimeZone(current, timeZone, 'HH:mm');
-                availableSlots.push(timeStr);
-            }
+            if (!overlap) availableSlots.push(current.toTimeString().slice(0, 5));
             current = next;
         }
 
