@@ -1,3 +1,4 @@
+import { format } from 'date-fns-tz';
 import { google } from 'googleapis';
 import { parseISO, formatISO, addMinutes, isBefore } from 'date-fns';
 import dotenv from 'dotenv';
@@ -5,6 +6,7 @@ import { allowedBookingDays, getSlotsIfAvailable, isSlotBlocked } from '@/app/ut
 
 dotenv.config();
 
+const timeZone = process.env.CUSTOM_TZ || 'Asia/Kolkata';
 
 const calendarId = process.env.GOOGLE_CALENDAR_ID;
 const auth = global.googleAuthClient;
@@ -38,19 +40,19 @@ export function isBookingAllowed(requestedDate) {
 export async function getAvailableSlots(dateStr) {
     const date = parseISO(dateStr);
 
-    // Disallow Sundays (0 = Sunday)
-    if (date.getDay() === 0) {
-        return [];
-    }
+    if (date.getDay() === 0) return [];
 
     const startTime = new Date(date.setHours(11, 0, 0, 0));
     const endTime = new Date(date.setHours(17, 0, 0, 0));
 
+    const timeMin = format(startTime, "yyyy-MM-dd'T'HH:mm:ssXXX", { timeZone });
+    const timeMax = format(endTime, "yyyy-MM-dd'T'HH:mm:ssXXX", { timeZone });
+
     console.log("fetching events using google api...");
     const eventsRes = await calendar.events.list({
         calendarId,
-        timeMin: formatISO(startTime),
-        timeMax: formatISO(endTime),
+        timeMin,
+        timeMax,
         singleEvents: true,
         orderBy: 'startTime',
     });
@@ -71,7 +73,7 @@ export async function getAvailableSlots(dateStr) {
         current = next;
     }
 
-    console.log("available slots to return : ", availableSlots)
+    console.log("available slots to return : ", availableSlots);
 
     return availableSlots;
 }
