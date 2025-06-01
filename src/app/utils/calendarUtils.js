@@ -40,15 +40,15 @@ export function isBookingAllowed(requestedDate) {
 export async function getAvailableSlots(dateStr) {
     try {
 
-        const date = new Date(new Date(dateStr).toLocaleString("en-US", { timeZone: timeZone }));
+        const date = parseISO(dateStr);
 
         // Disallow Sundays (0 = Sunday)
         if (date.getDay() === 0) {
             return [];
         }
 
-        const startTime = new Date(date.setHours(11, 0, 0, 0));
-        const endTime = new Date(date.setHours(17, 0, 0, 0));
+        const startTime = new Date(date.setHours(5, 30, 0, 0));
+        const endTime = new Date(date.setHours(11, 30, 0, 0));
 
         const eventsRes = await calendar.events.list({
             calendarId,
@@ -67,10 +67,15 @@ export async function getAvailableSlots(dateStr) {
 
         const availableSlots = [];
         let current = startTime;
-        while (isBefore(current.toLocaleString("en-US", { timeZone: timeZone }), endTime.toLocaleString("en-US", { timeZone: timeZone }))) {
+        while (isBefore(current, endTime)) {
             const next = addMinutes(current, 30);
             const overlap = busySlots.some(([start, end]) => current < end && next > start);
-            if (!overlap) availableSlots.push(current.toTimeString().slice(0, 5));
+            if (!overlap) {
+                // Add 5 hours 30 minutes manually
+                const istTime = new Date(current.getTime() + 5.5 * 60 * 60 * 1000);
+                const timeStr = istTime.toTimeString().slice(0, 5); // 'HH:mm'
+                availableSlots.push(timeStr);
+            }
             current = next;
         }
 
