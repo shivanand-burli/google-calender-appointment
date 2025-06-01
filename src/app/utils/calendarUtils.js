@@ -1,6 +1,6 @@
-import { format } from 'date-fns-tz';
+import { fromZonedTime, formatInTimeZone, format } from 'date-fns-tz';
 import { google } from 'googleapis';
-import { parseISO, formatISO, addMinutes, isBefore } from 'date-fns';
+import { parseISO, addMinutes, isBefore } from 'date-fns';
 import dotenv from 'dotenv';
 import { allowedBookingDays, getSlotsIfAvailable, isSlotBlocked } from '@/app/utils/cache'
 
@@ -39,16 +39,17 @@ export function isBookingAllowed(requestedDate) {
 
 export async function getAvailableSlots(dateStr) {
     const date = parseISO(dateStr);
-
     if (date.getDay() === 0) return [];
 
-    const startTime = new Date(date.setHours(11, 0, 0, 0));
-    const endTime = new Date(date.setHours(17, 0, 0, 0));
+    const timeZone = 'Asia/Kolkata';
 
-    const timeMin = format(startTime, "yyyy-MM-dd'T'HH:mm:ssXXX", { timeZone });
-    const timeMax = format(endTime, "yyyy-MM-dd'T'HH:mm:ssXXX", { timeZone });
+    const startTime = fromZonedTime(`${dateStr}T11:00:00`, timeZone);
+    const endTime = fromZonedTime(`${dateStr}T17:00:00`, timeZone);
 
-    console.log("fetching events using google api...");
+    const timeMin = formatInTimeZone(startTime, timeZone, "yyyy-MM-dd'T'HH:mm:ssXXX");
+    const timeMax = formatInTimeZone(endTime, timeZone, "yyyy-MM-dd'T'HH:mm:ssXXX");
+
+
     const eventsRes = await calendar.events.list({
         calendarId,
         timeMin,
@@ -56,8 +57,6 @@ export async function getAvailableSlots(dateStr) {
         singleEvents: true,
         orderBy: 'startTime',
     });
-
-    console.log("events fetched : ", eventsRes);
 
     const busySlots = eventsRes.data.items.map(e => [
         new Date(e.start.dateTime),
@@ -72,8 +71,6 @@ export async function getAvailableSlots(dateStr) {
         if (!overlap) availableSlots.push(current.toTimeString().slice(0, 5));
         current = next;
     }
-
-    console.log("available slots to return : ", availableSlots);
 
     return availableSlots;
 }
