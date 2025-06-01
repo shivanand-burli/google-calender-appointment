@@ -1,12 +1,12 @@
 import { toZonedTime, formatInTimeZone } from 'date-fns-tz';
 import { google } from 'googleapis';
-import { parseISO, addMinutes, isBefore } from 'date-fns';
+import { parseISO, addMinutes, isBefore, setMinutes, setHours } from 'date-fns';
 import dotenv from 'dotenv';
 import { allowedBookingDays, getSlotsIfAvailable, isSlotBlocked } from '@/app/utils/cache'
 
 dotenv.config();
 
-const timeZone = process.env.CUSTOM_TZ || 'Asia/Kolkata';
+const timeZone = 'Asia/Kolkata';
 
 const calendarId = process.env.GOOGLE_CALENDAR_ID;
 const auth = global.googleAuthClient;
@@ -38,42 +38,54 @@ export function isBookingAllowed(requestedDate) {
 }
 
 export async function getAvailableSlots(dateStr) {
-    const date = parseISO(dateStr);
-    if (date.getDay() === 0) return [];
 
-    // Convert base date to zoned time
-    const startZoned = toZonedTime(`${dateStr}T11:00:00`, timeZone);
-    const endZoned = toZonedTime(`${dateStr}T17:00:00`, timeZone);
+    try {
+        const date = parseISO(dateStr);
+        if (date.getDay() === 0) return [];
 
-    const timeMin = formatInTimeZone(startZoned, timeZone, "yyyy-MM-dd'T'HH:mm:ssXXX");
-    const timeMax = formatInTimeZone(endZoned, timeZone, "yyyy-MM-dd'T'HH:mm:ssXXX");
+        // Create start and end in UTC, then convert to zoned time for display
+        const rawStart = setMinutes(setHours(date, 11), 0); // 11:00 IST
+        const rawEnd = setMinutes(setHours(date, 17), 0);   // 17:00 IST
 
-    const eventsRes = await calendar.events.list({
-        calendarId,
-        timeMin,
-        timeMax,
-        singleEvents: true,
-        orderBy: 'startTime',
-    });
+        const startZoned = toZonedTime(rawStart, timeZone);
+        const endZoned = toZonedTime(rawEnd, timeZone);
 
-    const busySlots = eventsRes.data.items.map(e => [
-        new Date(e.start.dateTime),
-        new Date(e.end.dateTime)
-    ]);
+        const timeMin = formatInTimeZone(rawStart, timeZone, "yyyy-MM-dd'T'HH:mm:ssXXX");
+        const timeMax = formatInTimeZone(rawEnd, timeZone, "yyyy-MM-dd'T'HH:mm:ssXXX");
 
-    const availableSlots = [];
-    let current = startZoned;
-    while (isBefore(current, endZoned)) {
-        const next = addMinutes(current, 30);
-        const overlap = busySlots.some(([start, end]) => current < end && next > start);
-        if (!overlap) {
-            const timeStr = formatInTimeZone(current, timeZone, 'HH:mm');
-            availableSlots.push(timeStr);
+
+        const eventsRes = await calendar.events.list({
+            calendarId,
+            timeMin,
+            timeMax,
+            singleEvents: true,
+            orderBy: 'startTime',
+        });
+
+        console.log("eventsRes : ", eventsRes);
+
+        const busySlots = eventsRes.data.items.map(e => [
+            new Date(e.start.dateTime),
+            new Date(e.end.dateTime)
+        ]);
+
+        const availableSlots = [];
+        let current = rawStart;
+        while (isBefore(current, rawEnd)) {
+            const next = addMinutes(current, 30);
+            const overlap = busySlots.some(([start, end]) => current < end && next > start);
+            if (!overlap) {
+                const timeStr = formatInTimeZone(current, timeZone, 'HH:mm');
+                availableSlots.push(timeStr);
+            }
+            current = next;
         }
-        current = next;
-    }
 
-    return availableSlots;
+        return availableSlots;
+    } catch (err) {
+        console.log("Failed to get available slots from calender : ", err)
+        throw err;
+    }
 }
 
 
