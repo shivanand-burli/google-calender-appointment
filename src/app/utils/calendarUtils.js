@@ -22,17 +22,17 @@ export function isBookingAllowed(requestedDate) {
         return false;
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // normalize to midnight
-    requestedDate.setHours(0, 0, 0, 0); // normalize
+    // const today = new Date();
+    // today.setHours(0, 0, 0, 0); // normalize to midnight
+    // requestedDate.setHours(0, 0, 0, 0); // normalize
 
-    const maxAllowedDate = new Date(today);
-    maxAllowedDate.setDate(today.getDate() + allowedBookingDays);
+    // const maxAllowedDate = new Date(today);
+    // maxAllowedDate.setDate(today.getDate() + allowedBookingDays);
 
-    // Date in the past or beyond allowed range
-    if (requestedDate < today || requestedDate > maxAllowedDate) {
-        return false;
-    }
+    // // Date in the past or beyond allowed range
+    // if (requestedDate < today || requestedDate > maxAllowedDate) {
+    //     return false;
+    // }
 
     return true;
 }

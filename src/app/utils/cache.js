@@ -122,8 +122,11 @@ export async function getSlotsIfAvailable(dateStr) {
     }
 
     const now = new Date();
-    const requestedDate = new Date(dateStr);
-    const isToday = requestedDate.toDateString() === now.toDateString();
+    const requestedDateUTC = new Date(dateStr);
+    const nowIST = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
+    const requestedDateIST = new Date(requestedDateUTC.getTime() + 5.5 * 60 * 60 * 1000);
+
+    const isToday = requestedDateIST.toDateString() === nowIST.toDateString();
 
     const availableSlots = [];
 
@@ -139,10 +142,10 @@ export async function getSlotsIfAvailable(dateStr) {
         if (value.state === SlotState.AVAILABLE) {
             if (isToday) {
                 const [hours, minutes] = time.split(':').map(Number);
-                const slotDate = new Date(requestedDate);
+                const slotDate = new Date(requestedDateIST);
                 slotDate.setHours(hours, minutes, 0, 0);
 
-                const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+                const twoHoursLater = new Date(nowIST.getTime() + 2 * 60 * 60 * 1000);
                 if (slotDate <= twoHoursLater) continue;
             }
 
